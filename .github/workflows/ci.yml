@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+env:
+  # we call `pnpm playwright install` instead
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+# cancel in-progress runs on new commits to same PR (gitub.event.number)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+# use min permissions
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+jobs:
+  # "checks" job runs on linux + node lts only and checks that install, build, lint and audit work
+  # it also primes the pnpm store cache for linux, important for downstream tests
+  checks:
+    timeout-minutes: 5
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # pseudo-matrix for convenience, NEVER use more than a single combination
+        node: [22]
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: install pnpm
+        shell: bash
+        run: |
+          PNPM_VER=$(jq -r '.packageManager | if .[0:5] == "pnpm@" then .[5:] else "packageManager in package.json does not start with pnpm@\n" | halt_error(1)  end' package.json)
+          echo installing pnpm version $PNPM_VER
+          npm i -g pnpm@$PNPM_VER
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
+      - name: install
+        run: pnpm install --frozen-lockfile --prefer-offline --ignore-scripts
+      - name: format
+        run: pnpm check:format
+      - name: lint
+        if: (${{ success() }} || ${{ failure() }})
+        run: pnpm check:lint
+      - name: types
+        if: (${{ success() }} || ${{ failure() }})
+        run: pnpm check:types
+      - name: audit
+        if: (${{ success() }} || ${{ failure() }})
+        run: pnpm check:audit
+      - name: publint
+        if: (${{ success() }} || ${{ failure() }})
+        run: pnpm check:publint
+      - name: generated types are up to date
+        if: (${{ success() }} || ${{ failure() }})
+        run: pnpm generate:types && [ "`git status --porcelain=v1`" == "" ]
+
+  # "test" job runs on linux, windows, mac with node active lts and linux with node maintenance lts
+  test:
+    timeout-minutes: 10
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - node: 18
+            os: ubuntu-latest
+          - node: 20
+            os: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: install pnpm
+        shell: bash
+        run: |
+          PNPM_VER=$(jq -r '.packageManager | if .[0:5] == "pnpm@" then .[5:] else "packageManager in package.json does not start with pnpm@\n" | halt_error(1)  end' package.json)
+          echo installing pnpm version $PNPM_VER
+          npm i -g pnpm@$PNPM_VER
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
+      - name: install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: install playwright chromium
+        run: pnpm playwright install chromium
+      - name: run tests
+        run: pnpm test
+      - name: archive tests temp directory
+        if: failure()
+        shell: bash
+        run: tar -cvf test-temp.tar  --exclude="node_modules"  temp/
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-failure-${{github.run_id}}-${{ matrix.os }}-${{ matrix.node }}
+          path: |
+            test-temp.tar
+            pnpm-debug.log

@@ -1,0 +1,54 @@
+{
+  "name": "@svitejs/vite-plugin-protect",
+  "version": "1.0.0",
+  "license": "MIT",
+  "author": "dominikg",
+  "files": [
+    "src",
+    "types"
+  ],
+  "type": "module",
+  "types": "types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./types/index.d.ts",
+        "default": "./src/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "check:publint": "publint --strict",
+    "check:types": "tsc --noEmit",
+    "generate:types": "dts-buddy -m \"@svitejs/vite-plugin-protect:src/public.d.ts\""
+  },
+  "engines": {
+    "node": "^18.0.0 || ^20.0.0 || >=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/svitejs/vite-plugin-protect.git",
+    "directory": "packages/vite-plugin-protect"
+  },
+  "keywords": [
+    "vite-plugin",
+    "vite plugin",
+    "vite",
+    "security",
+    "protect"
+  ],
+  "bugs": {
+    "url": "https://github.com/svitejs/vite-plugin-protect/issues"
+  },
+  "homepage": "https://github.com/svitejs/vite-plugin-protect#readme",
+  "dependencies": {
+    "basic-auth": "^2.0.1"
+  },
+  "peerDependencies": {
+    "vite": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.13",
+    "vite": "^6.2.3"
+  }
+}
