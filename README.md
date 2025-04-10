@@ -2,7 +2,7 @@
 
 This is an experiment to see what can be achieved with plugins to adapt the behavior of vite dev server for additional needs
 Some experiments might not ever be useful to you, others might land in vite.
-The existance of this plugin does not the vite devserver is pushing users security out into a user concern, quite the opposite.
+The existence of this plugin does not mean vite is pushing users security out into a user concern, quite the opposite.
 
 # @svitejs/vite-plugin-protect
 
